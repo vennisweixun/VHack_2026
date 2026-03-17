@@ -184,11 +184,26 @@ function LogRow({ entry }) {
       </span>
       <span style={{
         fontSize: 10, padding: '2px 7px', borderRadius: 12,
-        background: entry.source === 'api' ? 'rgba(6,182,212,0.12)' : 'rgba(100,116,139,0.12)',
-        color: entry.source === 'api' ? '#06b6d4' : 'var(--text-muted)',
-        border: `1px solid ${entry.source === 'api' ? 'rgba(6,182,212,0.25)' : 'transparent'}`,
+        background:
+          entry.source === 'pkl_model' ? 'rgba(99,102,241,0.12)' :
+          entry.source === 'mock'      ? 'rgba(245,158,11,0.12)'  :
+          entry.source === 'offline'   ? 'rgba(100,116,139,0.12)' :
+          'rgba(6,182,212,0.12)',
+        color:
+          entry.source === 'pkl_model' ? '#a5b4fc' :
+          entry.source === 'mock'      ? '#fbbf24'  :
+          entry.source === 'offline'   ? '#6b7280'  :
+          '#06b6d4',
+        border: `1px solid ${
+          entry.source === 'pkl_model' ? 'rgba(99,102,241,0.25)' :
+          entry.source === 'mock'      ? 'rgba(245,158,11,0.25)'  :
+          'transparent'
+        }`,
       }}>
-        {entry.source === 'api' ? 'XGBoost' : entry.source === 'fallback' ? 'fallback' : entry.source}
+        {entry.source === 'pkl_model' ? '🧠 XGBoost+SHAP' :
+         entry.source === 'mock'      ? '⚙ rule-based'   :
+         entry.source === 'offline'   ? '⚡ offline est.' :
+         entry.source}
       </span>
       {isError && (
         <span style={{ fontSize: 10, color: '#e11d48', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -235,6 +250,8 @@ export default function Settings({
 
   const modelLoaded    = health?.model?.loaded ?? false;
   const hasEncoders    = health?.model?.has_encoders ?? false;
+  const shapAvailable  = health?.model?.shap_available ?? false;
+  const shapPackage    = health?.model?.shap_package ?? false;
   const apiOk          = !!health && !testError;
 
   // Stats from activity log
@@ -268,11 +285,11 @@ export default function Settings({
           },
           {
             label: 'XGBoost Model',
-            value: modelLoaded ? (hasEncoders ? 'Loaded + Encoders' : 'Loaded (no encoders)') : 'Not Loaded',
+            value: !modelLoaded ? 'Not Loaded' : hasEncoders ? 'Loaded + Encoders' : 'Loaded (no encoders)',
             icon: Cpu,
-            color: modelLoaded ? (hasEncoders ? '#10b981' : '#f59e0b') : '#e11d48',
+            color: !modelLoaded ? '#e11d48' : hasEncoders ? '#10b981' : '#f59e0b',
             sub: modelLoaded
-              ? `${health?.model?.features} features · ${health?.model?.type}`
+              ? `${health?.model?.features} features · ${health?.model?.type} · SHAP: ${shapAvailable ? '✓ ready' : shapPackage ? '✗ explainer failed' : '✗ pip install shap'}`
               : 'Run patch_pkl.py and restart API',
           },
           {
@@ -343,12 +360,19 @@ export default function Settings({
 
         {health && (
           <div>
-            <KV label="Status"      value={health.status} />
-            <KV label="MongoDB DB"  value={health.mongodb_db} mono />
-            <KV label="Model Type"  value={health.model?.type}    />
-            <KV label="Features"    value={health.model?.features} />
+            <KV label="Status"       value={health.status} />
+            <KV label="MongoDB DB"   value={health.mongodb_db} mono />
+            <KV label="Model Type"   value={health.model?.type} />
+            <KV label="Features"     value={health.model?.features} />
             <KV label="Has Encoders" value={health.model?.has_encoders ? 'Yes' : 'No — run patch_pkl.py'} />
-            <KV label="Model Path"  value={health.model?.path} mono />
+            <KV label="SHAP Package" value={health.model?.shap_package ? 'Installed' : 'Not installed — run: pip install shap'} />
+            <KV label="SHAP Explainer" value={
+              !health.model?.shap_package ? 'N/A (shap not installed)' :
+              !health.model?.loaded       ? 'N/A (model not loaded)' :
+              health.model?.shap_available ? '✓ Ready — SHAP explanations active' :
+              '✗ Explainer failed to build — check API logs'
+            } />
+            <KV label="Model Path"   value={health.model?.path} mono />
           </div>
         )}
 

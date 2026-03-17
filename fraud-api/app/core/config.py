@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     # XGBoost model path (from fraud_model_pipeline.py + patch_pkl.py)
     model_path: str = Field(default=r"C:\FraudShield\fraud_model.pkl", alias="MODEL_PATH")
 
-    # Risk thresholds
+    # Risk thresholds — applied to the calibrated fraud probability (0.0–1.0).
+    # The XGBoost model output is prior-corrected so that 0.5 means "features
+    # are equally consistent with fraud and legitimate transactions".
     # fraud_probability < approved_threshold          → APPROVED
     # approved_threshold <= prob < block_threshold    → FLAGGED
     # prob >= block_threshold                         → BLOCKED

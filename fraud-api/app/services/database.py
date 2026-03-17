@@ -96,6 +96,16 @@ async def get_card_history(card_id: int, limit: int = 50) -> list[dict]:
     return list(reversed(docs))
 
 
+async def update_transaction_status(transaction_id: str, new_status: str) -> bool:
+    """Update the status of a transaction. Returns True if a document was modified."""
+    col = get_db()["transactions"]
+    result = await col.update_one(
+        {"transaction_id": transaction_id},
+        {"$set": {"status": new_status}},
+    )
+    return result.modified_count > 0
+
+
 async def list_transactions(
     page: int = 1,
     page_size: int = 50,

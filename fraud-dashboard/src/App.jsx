@@ -12,7 +12,7 @@ import { useTransactions } from './hooks/useTransactions';
 function App() {
   const {
     transactions, lastUpdated, isRefreshing, newCount, refresh,
-    activityLog, processingCount, apiConnected,
+    activityLog, processingCount, apiConnected, updateLocalStatus,
   } = useTransactions();
 
   const fraudCount   = useMemo(() => transactions.filter(t => t.is_fraud_alert).length,   [transactions]);
@@ -26,7 +26,7 @@ function App() {
         <Routes>
           <Route path="/"               element={<Overview     {...sharedProps} />} />
           <Route path="/transactions"   element={<Transactions {...sharedProps} />} />
-          <Route path="/fraud-alerts"   element={<FraudAlerts  {...sharedProps} />} />
+          <Route path="/fraud-alerts"   element={<FraudAlerts  {...sharedProps} onStatusUpdate={updateLocalStatus} />} />
           <Route path="/anomaly-alerts" element={<AnomalyAlerts {...sharedProps} />} />
           <Route path="/transaction/:id" element={<TransactionDetail transactions={transactions} />} />
           <Route

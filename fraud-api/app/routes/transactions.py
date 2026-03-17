@@ -1,9 +1,10 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from app.models.transaction import (
     TransactionRequest,
@@ -194,4 +195,34 @@ async def get_transaction(transaction_id: str):
     doc = await database.get_transaction_by_id(transaction_id)
     if not doc:
         raise HTTPException(status_code=404, detail=f"Transaction '{transaction_id}' not found.")
+    return TransactionDocument(**doc)
+
+
+# ─── PATCH /transactions/{transaction_id}/status ─────────────────────────────
+
+class StatusUpdateRequest(BaseModel):
+    status: Literal["APPROVED", "BLOCKED"]
+
+
+@router.patch(
+    "/{transaction_id}/status",
+    response_model=TransactionDocument,
+    summary="Approve or block a flagged transaction",
+    description="""
+Allows a dashboard reviewer to manually update the status of a **FLAGGED** transaction
+to either **APPROVED** or **BLOCKED**.
+""",
+)
+async def update_transaction_status(transaction_id: str, body: StatusUpdateRequest):
+    doc = await database.get_transaction_by_id(transaction_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"Transaction '{transaction_id}' not found.")
+
+    updated = await database.update_transaction_status(transaction_id, body.status)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update transaction status.")
+
+    logger.info("Transaction %s status updated → %s", transaction_id, body.status)
+
+    doc = await database.get_transaction_by_id(transaction_id)
     return TransactionDocument(**doc)

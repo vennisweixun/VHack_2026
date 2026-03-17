@@ -42,12 +42,21 @@ async def score_transaction(
                 source="pkl_model",
             ), flags
         except Exception as exc:
-            logger.warning(
-                "pkl model prediction failed (%s). Falling back to mock.", exc
+            # Log the FULL traceback so the cause is visible in the API console
+            logger.error(
+                "pkl model prediction failed for txn %s — falling back to mock.  "
+                "Fix the error above to ensure XGBoost is used for ALL transactions.",
+                txn.transaction_id,
+                exc_info=True,
             )
 
     # ── Fallback: rule-based mock ─────────────────────────────────────────────
-    logger.info("Using mock fraud model (pkl model not loaded or failed)")
+    logger.warning(
+        "Using MOCK fraud model for txn %s — "
+        "pkl model is %s.",
+        txn.transaction_id,
+        "loaded but failed (see error above)" if model_service.is_loaded() else "not loaded",
+    )
     fraud_prob, flags = mock_fraud_model.score(txn)
     return FraudModelResponse(
         fraud_probability=fraud_prob,
