@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.cache/
+
+# Environment & Secrets
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+
+# Dataset (large files)
+dataset/
+
+# Build artifacts & temp
+*.zip
+*.pkl
+*.joblib
+"New folder"/
+
+# OS
+.DS_Store
+Thumbs.db
