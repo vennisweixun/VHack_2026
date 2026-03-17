@@ -53,45 +53,99 @@ function ScoreGauge({ label, value, color, description }) {
   );
 }
 
+// ── Detect flag type ──────────────────────────────────────────────────────────
+function flagType(flag) {
+  if (flag.startsWith('[derived]')) return 'derived';
+  if (flag.startsWith('[rule]'))    return 'rule';
+  return 'shap';
+}
+
+const FLAG_THEME = {
+  'shap':    { bg: 'rgba(225,29,72,0.06)',   border: 'rgba(225,29,72,0.18)',   icon: ShieldAlert,   color: '#fb7185',  label: 'XGBoost SHAP — fraud risk factor' },
+  'derived': { bg: 'rgba(245,158,11,0.06)',  border: 'rgba(245,158,11,0.18)',  icon: AlertTriangle, color: '#fbbf24',  label: 'Derived from transaction data (SHAP unavailable)' },
+  'rule':    { bg: 'rgba(99,102,241,0.06)',  border: 'rgba(99,102,241,0.18)',  icon: Info,          color: '#a5b4fc',  label: 'Rule-based model (XGBoost pkl not loaded)' },
+};
+
 function FlagItem({ flag }) {
-  const iconMap = {
-    'New device detected': Smartphone,
-    'Unusual transaction amount': DollarSign,
-    'Country mismatch': Globe,
-    'Abnormal transaction pattern': Activity,
-    'Multiple rapid transactions': Activity,
-    'High-risk merchant category': ShieldAlert,
-    'IP address mismatch': Wifi,
-    'Suspicious velocity': Activity,
-    'Account age threshold': Clock,
-    'Unrecognized location': Globe,
-    'Off-hours transaction': Clock,
-    'Card-not-present transaction': CreditCard,
-  };
-  const Icon = iconMap[flag] || Info;
+  const type  = flagType(flag);
+  const theme = FLAG_THEME[type];
+  const Icon  = theme.icon;
+
+  const displayText = flag
+    .replace(/^\[derived\]\s*/, '')
+    .replace(/^\[rule\]\s*/,    '');
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
+      display: 'flex', alignItems: 'flex-start', gap: 10,
       padding: '10px 14px',
-      background: 'rgba(225,29,72,0.06)',
-      border: '1px solid rgba(225,29,72,0.15)',
+      background: theme.bg,
+      border: `1px solid ${theme.border}`,
       borderRadius: 8,
       marginBottom: 8,
     }}>
       <div style={{
-        width: 28, height: 28,
-        borderRadius: 7,
-        background: 'rgba(225,29,72,0.12)',
-        border: '1px solid rgba(225,29,72,0.2)',
+        width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+        background: theme.bg, border: `1px solid ${theme.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
+        marginTop: 1,
       }}>
-        <Icon size={14} color="#fb7185" />
+        <Icon size={14} color={theme.color} />
       </div>
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{flag}</span>
+      <div>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          {displayText}
+        </span>
+        {theme.label && (
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            {theme.label}
+          </div>
+        )}
+      </div>
     </div>
   );
+}
+
+// ── Client-side explanation builder (last-resort for MEDIUM/HIGH with no flags) ──
+// Used when: API offline + MEDIUM/HIGH risk, OR historical data with flags:[]
+function buildClientExplanation(t) {
+  const flags = [];
+  const fp = t.fraud_probability || 0;
+
+  if (fp >= 0.75)
+    flags.push(`[derived] XGBoost fraud score ${(fp*100).toFixed(2)}% — exceeds BLOCK threshold (≥75%)`);
+  else if (fp >= 0.40)
+    flags.push(`[derived] XGBoost fraud score ${(fp*100).toFixed(2)}% — exceeds FLAG threshold (≥40%)`);
+  else
+    flags.push(`[derived] Fraud probability ${(fp*100).toFixed(2)}% — classified as ${t.risk_level} risk`);
+
+  const amount = t.amount || 0;
+  if (amount >= 10000)
+    flags.push(`[derived] Very high transaction amount: MYR ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+  else if (amount >= 3000)
+    flags.push(`[derived] Above-average transaction amount: MYR ${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+
+  const channel = t.channel || '';
+  if (['ecommerce','in_app','moto'].includes(channel) && !t.card_present_flag)
+    flags.push(`[derived] Card-not-present transaction via ${channel}`);
+
+  if (['fail','missing'].includes((t.avs_result || '').toLowerCase()))
+    flags.push('[derived] AVS address verification failed or missing');
+  if (['fail','missing'].includes((t.cvc_result || '').toLowerCase()))
+    flags.push('[derived] CVC card security code failed or missing');
+  if (['challenge_failed','unavailable'].includes((t.three_ds_result || '').toLowerCase()))
+    flags.push('[derived] 3DS authentication challenge failed or unavailable');
+
+  const issuer   = t.issuer_country   || t.home_country || '';
+  const merchant = t.merchant_country_code || '';
+  if (issuer && merchant && issuer !== merchant)
+    flags.push(`[derived] Cross-border transaction: card from ${issuer}, merchant in ${merchant}`);
+
+  const HIGH_RISK_MCC = { 'Gambling': true, 'Crypto Exchange': true, 'Financial Services': true };
+  if (t.mcc_label && HIGH_RISK_MCC[t.mcc_label])
+    flags.push(`[derived] High-risk merchant category: ${t.mcc_label}`);
+
+  return flags;
 }
 
 export default function TransactionDetail({ transactions }) {
@@ -286,22 +340,98 @@ export default function TransactionDetail({ transactions }) {
             </div>
 
             {/* Explainability */}
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '20px 24px' }}>
-              <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Info size={15} color="var(--text-muted)" /> Explainability Flags
-              </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-                Factors that contributed to this transaction being flagged
-              </p>
-              {t.flags.length === 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 8 }}>
-                  <CheckCircle size={16} color="#10b981" />
-                  <span style={{ fontSize: 13, color: '#34d399' }}>No suspicious flags detected</span>
+            {(() => {
+              const isHighOrMedium = t.risk_level === 'HIGH' || t.risk_level === 'MEDIUM';
+              const isOffline      = t.scored_by === 'offline';
+              const isMock         = t.scored_by === 'mock';
+              const isXgb          = t.scored_by === 'pkl_model';
+              const hasShap        = t.scored_by === 'pkl_model' && (t.flags || []).some(f => !f.startsWith('[derived]') && !f.startsWith('[rule]'));
+              const hasDerived     = (t.flags || []).some(f => f.startsWith('[derived]'));
+              const hasRule        = (t.flags || []).some(f => f.startsWith('[rule]'));
+              const hasFlags       = (t.flags || []).length > 0;
+
+              // Resolve what flags to actually display
+              let displayFlags = t.flags || [];
+
+              // Last resort: MEDIUM/HIGH with no flags at all → build client-side explanation
+              if (isHighOrMedium && !hasFlags && !isOffline) {
+                displayFlags = buildClientExplanation(t);
+              }
+
+              // Resolve source badge label
+              const sourceBadge = isOffline ? { label: '⚡ Offline — local estimate',         bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.25)', color: '#94a3b8' }
+                : isMock         ? { label: '⚙ Rule-based model (no pkl loaded)',             bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.25)',  color: '#a5b4fc' }
+                : hasShap        ? { label: '🧠 XGBoost + SHAP',                             bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.25)',  color: '#a5b4fc' }
+                : (hasDerived || displayFlags.some(f => f.startsWith('[derived]')))
+                                 ? { label: '⚠ XGBoost score — derived explanation',         bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.25)',  color: '#fbbf24' }
+                :                  { label: '🧠 XGBoost',                                    bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.25)',  color: '#a5b4fc' };
+
+              return (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '20px 24px' }}>
+                  <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Info size={15} color="var(--text-muted)" /> Explainability
+                  </h2>
+
+                  {/* Source badge */}
+                  <div style={{ marginBottom: 14 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 5,
+                      background: sourceBadge.bg, border: `1px solid ${sourceBadge.border}`,
+                      color: sourceBadge.color, textTransform: 'uppercase', letterSpacing: '0.06em',
+                    }}>
+                      {sourceBadge.label}
+                    </span>
+                  </div>
+
+                  {/* API offline */}
+                  {isOffline ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', background: 'rgba(100,116,139,0.07)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, marginBottom: isHighOrMedium ? 12 : 0 }}>
+                        <XCircle size={18} color="#64748b" style={{ flexShrink: 0, marginTop: 1 }} />
+                        <div>
+                          <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>The API is offline now.</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                            The fraud score shown is a local estimate only. Start the FastAPI backend to get real XGBoost + SHAP explanations.
+                          </div>
+                        </div>
+                      </div>
+                      {/* Still show derived explanation for MEDIUM/HIGH offline transactions */}
+                      {isHighOrMedium && buildClientExplanation(t).map((f, i) => <FlagItem key={i} flag={f} />)}
+                    </>
+
+                  ) : displayFlags.length === 0 ? (
+                    // Low risk, no flags — clean pass
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 8 }}>
+                      <CheckCircle size={16} color="#10b981" />
+                      <span style={{ fontSize: 13, color: '#34d399' }}>No significant risk factors detected — transaction appears normal</span>
+                    </div>
+
+                  ) : (
+                    <>
+                      {/* Contextual description */}
+                      {hasShap && (
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                          The following factors from this transaction contributed most to the fraud score, as calculated by XGBoost SHAP analysis.
+                        </p>
+                      )}
+                      {(hasDerived || displayFlags.some(f => f.startsWith('[derived]'))) && !hasShap && (
+                        <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 12, lineHeight: 1.5,
+                          padding: '8px 12px', background: 'rgba(245,158,11,0.07)', borderRadius: 6, border: '1px solid rgba(245,158,11,0.18)' }}>
+                          SHAP feature contributions were unavailable for this transaction. The explanations below are
+                          derived directly from the transaction fields — each factor is a known fraud risk indicator.
+                        </p>
+                      )}
+                      {hasRule && (
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                          Scored by the rule-based model (pkl not loaded). Each flag directly increased the fraud score.
+                          Load <code style={{ fontSize: 11, background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 4 }}>fraud_model.pkl</code> for SHAP explanations.
+                        </p>
+                      )}
+                      {displayFlags.map((flag, i) => <FlagItem key={i} flag={flag} />)}
+                    </>
+                  )}
                 </div>
-              ) : (
-                t.flags.map((flag, i) => <FlagItem key={i} flag={flag} />)
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
       </div>
