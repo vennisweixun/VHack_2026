@@ -12,8 +12,8 @@ import pickle
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
-MODEL_PKL   = r"C:\FraudShield\fraud_model.pkl"
-TRAIN_CLEAN = r"C:\FraudShield\train_clean.csv"
+MODEL_PKL   = r"C:\Users\Mjian\OneDrive\Documents\GitHub\VHack_2026\fraud_model.pkl"
+TRAIN_CLEAN = r"C:\Users\Mjian\OneDrive\Documents\GitHub\VHack_2026\train_clean.csv"
 
 LABEL_COLS = [
     "merchant_country", "channel", "entry_mode",

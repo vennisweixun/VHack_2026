@@ -9,16 +9,19 @@ class Settings(BaseSettings):
     mongodb_db_name: str = Field(default="fraudshield", alias="MONGODB_DB_NAME")
 
     # XGBoost model path (from fraud_model_pipeline.py + patch_pkl.py)
-    model_path: str = Field(default=r"C:\FraudShield\fraud_model.pkl", alias="MODEL_PATH")
+    model_path: str = Field(default="C:/Users/Mjian/OneDrive/Documents/GitHub/VHack_2026/fraud_model.pkl", alias="FRAUD_MODEL_URL")
 
-    # Risk thresholds — applied to the calibrated fraud probability (0.0–1.0).
-    # The XGBoost model output is prior-corrected so that 0.5 means "features
-    # are equally consistent with fraud and legitimate transactions".
+    # Risk thresholds
     # fraud_probability < approved_threshold          → APPROVED
     # approved_threshold <= prob < block_threshold    → FLAGGED
     # prob >= block_threshold                         → BLOCKED
     approved_threshold: float = Field(default=0.40, alias="APPROVED_THRESHOLD")
     block_threshold:    float = Field(default=0.75, alias="BLOCK_THRESHOLD")
+
+    # JWT / Auth
+    jwt_secret: str = Field(default="change-me-in-production-use-a-long-random-string", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=60 * 24, alias="JWT_EXPIRE_MINUTES")  # 24 hours
 
     # App
     app_env:    str = Field(default="development", alias="APP_ENV")

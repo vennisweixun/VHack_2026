@@ -6,7 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.routes import transactions
+from app.routes import auth as auth_router
 from app.services import database, model_service
+from app.services.auth_service import ensure_users_indexes
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +25,7 @@ async def lifespan(app: FastAPI):
 
     # Connect to MongoDB
     await database.connect()
+    await ensure_users_indexes()
 
     # Load XGBoost fraud model
     settings = get_settings()
@@ -80,6 +84,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router, prefix=settings.api_prefix)
 app.include_router(transactions.router, prefix=settings.api_prefix)
 
 
