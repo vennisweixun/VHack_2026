@@ -179,14 +179,6 @@ export function generateRawTransaction(hoursAgo = 0) {
 
 // ─── Fallback scoring (when API is unreachable) ───────────────────────────────
 
-const FRAUD_FLAGS = [
-  'New device detected', 'Unusual transaction amount', 'Country mismatch',
-  'Abnormal transaction pattern', 'Multiple rapid transactions',
-  'High-risk merchant category', 'IP address mismatch',
-  'Suspicious velocity', 'Card-not-present transaction',
-  'Off-hours transaction', 'AVS check failed',
-];
-
 function classifyStatus(prob) {
   if (prob >= 0.75) return 'BLOCKED';
   if (prob >= 0.40) return 'FLAGGED';
@@ -200,21 +192,18 @@ export function applyFallbackScores(raw) {
   else if (roll < 0.20)  fp = parseFloat(rand(0.40, 0.74).toFixed(4));
   else                   fp = parseFloat(rand(0.01, 0.39).toFixed(4));
 
-  const status     = classifyStatus(fp);
-  const riskLevel  = status === 'BLOCKED' ? 'HIGH' : status === 'FLAGGED' ? 'MEDIUM' : 'LOW';
-  const flagCount  = riskLevel === 'HIGH' ? randInt(2, 4) : riskLevel === 'MEDIUM' ? randInt(1, 2) : 0;
-  const flags      = [...FRAUD_FLAGS].sort(() => 0.5 - Math.random()).slice(0, flagCount);
+  const status = classifyStatus(fp);
 
   return normalizeTransaction({
     ...raw,
-    fraud_probability:       fp,
-    risk_score:              fp,
+    fraud_probability:  fp,
+    risk_score:         fp,
     status,
-    flags,
-    fraud_model_source:      'fallback',
-    received_at:             new Date().toISOString(),
-    processed_at:            new Date().toISOString(),
-    message:                 `Fallback score (API unavailable): ${status}`,
+    flags:              [],          // no fabricated flags — API is offline
+    fraud_model_source: 'offline',   // signals the dashboard to show offline notice
+    received_at:        new Date().toISOString(),
+    processed_at:       new Date().toISOString(),
+    message:            `Score estimated locally (API unavailable): ${status}`,
   });
 }
 
@@ -242,6 +231,9 @@ export function normalizeTransaction(data) {
     mcc_code:  String(data.mcc ?? data.mcc_code ?? ''),
     bank_id:   data.card_brand ? `${data.card_brand.toUpperCase()}` : 'N/A',
     scored_by: data.fraud_model_source || 'api',
+    // 'offline'   = API unreachable, score estimated locally, no explainability
+    // 'mock'      = API online but pkl model not loaded, rule-based flags
+    // 'pkl_model' = API online + XGBoost model, real SHAP flags
   };
 }
 

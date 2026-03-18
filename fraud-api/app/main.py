@@ -95,11 +95,13 @@ async def health():
     return {
         "status": "ok",
         "model": {
-            "loaded":       m["loaded"],
-            "type":         m.get("model_type", "none"),
-            "features":     m.get("features", 0),
-            "has_encoders": m.get("has_encoders", False),
-            "path":         s.model_path,
+            "loaded":         m["loaded"],
+            "type":           m.get("model_type", "none"),
+            "features":       m.get("features", 0),
+            "has_encoders":   m.get("has_encoders", False),
+            "shap_available": m.get("shap_available", False),
+            "shap_package":   m.get("shap_package", False),
+            "path":           s.model_path,
         },
         "mongodb_db": s.mongodb_db_name,
         "thresholds": {

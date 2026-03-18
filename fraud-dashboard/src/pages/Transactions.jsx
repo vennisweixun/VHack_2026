@@ -39,12 +39,7 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      data = data.filter(t =>
-        t.transaction_id.toLowerCase().includes(q) ||
-        t.customer_id.toLowerCase().includes(q) ||
-        t.merchant_name.toLowerCase().includes(q) ||
-        t.merchant_country.toLowerCase().includes(q)
-      );
+      data = data.filter(t => t.transaction_id.toLowerCase().includes(q));
     }
 
     if (riskFilter !== 'ALL') data = data.filter(t => t.risk_level === riskFilter);
@@ -69,7 +64,43 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
 
   const resetPage = () => setPage(1);
 
-  const btnStyle = (active) => ({
+  const riskBtnStyle = (active) => ({
+    padding: '6px 14px',
+    borderRadius: 7,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: active ? '1px solid rgba(225,29,72,0.4)' : '1px solid var(--border-default)',
+    background: active ? 'rgba(225,29,72,0.12)' : 'var(--bg-elevated)',
+    color: active ? '#fb7185' : 'var(--text-secondary)',
+    transition: 'all 0.15s',
+  });
+
+  const alertBtnStyle = (active) => ({
+    padding: '6px 14px',
+    borderRadius: 7,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: active ? '1px solid rgba(234,179,8,0.4)' : '1px solid var(--border-default)',
+    background: active ? 'rgba(234,179,8,0.12)' : 'var(--bg-elevated)',
+    color: active ? '#fbbf24' : 'var(--text-secondary)',
+    transition: 'all 0.15s',
+  });
+
+  const timeBtnStyle = (active) => ({
+    padding: '6px 14px',
+    borderRadius: 7,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: active ? '1px solid rgba(59,130,246,0.4)' : '1px solid var(--border-default)',
+    background: active ? 'rgba(59,130,246,0.12)' : 'var(--bg-elevated)',
+    color: active ? '#60a5fa' : 'var(--text-secondary)',
+    transition: 'all 0.15s',
+  });
+
+  const paginationBtnStyle = (active) => ({
     padding: '6px 14px',
     borderRadius: 7,
     fontSize: 12,
@@ -102,15 +133,15 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
           display: 'flex',
           flexWrap: 'wrap',
           gap: 12,
-          alignItems: 'center',
+          alignItems: 'flex-end',
         }}>
-          {/* Search */}
-          <div style={{ position: 'relative', flex: '1', minWidth: 200 }}>
+          {/* Search — Transaction ID only */}
+          <div style={{ position: 'relative', flex: '1', minWidth: 220 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); resetPage(); }}
-              placeholder="Search by ID, customer, merchant..."
+              placeholder="Search by Transaction ID..."
               style={{
                 width: '100%',
                 padding: '8px 10px 8px 32px',
@@ -120,6 +151,7 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
                 color: 'var(--text-primary)',
                 fontSize: 13,
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
             />
             {search && (
@@ -128,35 +160,53 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
             )}
           </div>
 
-          {/* Risk Filter */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Filter size={13} color="var(--text-muted)" />
-            {['ALL', 'HIGH', 'MEDIUM', 'LOW'].map(r => (
-              <button key={r} style={btnStyle(riskFilter === r)}
-                onClick={() => { setRiskFilter(r); resetPage(); }}>
-                {r === 'ALL' ? 'All Risk' : r}
-              </button>
-            ))}
+          {/* Divider */}
+          <div style={{ width: 1, height: 28, background: 'var(--border-default)', flexShrink: 0 }} />
+
+          {/* Risk Level Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#fb7185', textTransform: 'uppercase', letterSpacing: '0.07em', paddingLeft: 2 }}>Risk Level</span>
+            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+              <Filter size={12} color="#fb7185" style={{ opacity: 0.7 }} />
+              {['ALL', 'HIGH', 'MEDIUM', 'LOW'].map(r => (
+                <button key={r} style={riskBtnStyle(riskFilter === r)}
+                  onClick={() => { setRiskFilter(r); resetPage(); }}>
+                  {r === 'ALL' ? 'All' : r}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Alert Filter */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[['ALL', 'All Alerts'], ['FRAUD', 'Fraud Only'], ['ANOMALY', 'Anomaly Only']].map(([v, l]) => (
-              <button key={v} style={btnStyle(alertFilter === v)}
-                onClick={() => { setAlertFilter(v); resetPage(); }}>
-                {l}
-              </button>
-            ))}
+          {/* Divider */}
+          <div style={{ width: 1, height: 28, background: 'var(--border-default)', flexShrink: 0 }} />
+
+          {/* Alert Type Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.07em', paddingLeft: 2 }}>Alert Type</span>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[['ALL', 'All'], ['FRAUD', 'Fraud'], ['ANOMALY', 'Anomaly']].map(([v, l]) => (
+                <button key={v} style={alertBtnStyle(alertFilter === v)}
+                  onClick={() => { setAlertFilter(v); resetPage(); }}>
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Date Filter */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[['ALL', 'All Time'], ['TODAY', 'Today'], ['7D', '7 Days'], ['30D', '30 Days']].map(([v, l]) => (
-              <button key={v} style={btnStyle(dateFilter === v)}
-                onClick={() => { setDateFilter(v); resetPage(); }}>
-                {l}
-              </button>
-            ))}
+          {/* Divider */}
+          <div style={{ width: 1, height: 28, background: 'var(--border-default)', flexShrink: 0 }} />
+
+          {/* Time Filter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.07em', paddingLeft: 2 }}>Time Range</span>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[['ALL', 'All Time'], ['TODAY', 'Today'], ['7D', '7 Days'], ['30D', '30 Days']].map(([v, l]) => (
+                <button key={v} style={timeBtnStyle(dateFilter === v)}
+                  onClick={() => { setDateFilter(v); resetPage(); }}>
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -266,7 +316,7 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                style={{ ...btnStyle(false), padding: '5px 10px', opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>
+                style={{ ...paginationBtnStyle(false), padding: '5px 10px', opacity: page === 1 ? 0.4 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}>
                 <ChevronLeft size={14} />
               </button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -274,7 +324,7 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
                 if (totalPages > 5 && page > 3) p = page - 2 + i;
                 if (p > totalPages) return null;
                 return (
-                  <button key={p} onClick={() => setPage(p)} style={btnStyle(page === p)}>
+                  <button key={p} onClick={() => setPage(p)} style={paginationBtnStyle(page === p)}>
                     {p}
                   </button>
                 );
@@ -282,7 +332,7 @@ export default function Transactions({ transactions, lastUpdated, isRefreshing, 
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                style={{ ...btnStyle(false), padding: '5px 10px', opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>
+                style={{ ...paginationBtnStyle(false), padding: '5px 10px', opacity: page === totalPages ? 0.4 : 1, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>
                 <ChevronRight size={14} />
               </button>
             </div>

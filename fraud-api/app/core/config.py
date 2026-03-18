@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     model_path: str = Field(default=r"C:\FraudShield\fraud_model.pkl", alias="MODEL_PATH")
 
     # Risk thresholds
+    # fraud_probability < approved_threshold          → APPROVED
+    # approved_threshold <= prob < block_threshold    → FLAGGED
+    # prob >= block_threshold                         → BLOCKED
     approved_threshold: float = Field(default=0.40, alias="APPROVED_THRESHOLD")
     block_threshold:    float = Field(default=0.75, alias="BLOCK_THRESHOLD")
 
