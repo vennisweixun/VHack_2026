@@ -23,6 +23,18 @@ const systemItems = [
 ];
 
 export default function Sidebar({ fraudCount, anomalyCount }) {
+  const [user] = React.useState(() => {
+    try {
+      const stored = localStorage.getItem('auth_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const userName = user?.full_name || user?.email?.split('@')[0] || 'Admin User';
+  const initials = userName.substring(0, 2).toUpperCase();
+
   return (
     <aside style={{
       width: 240,
@@ -157,11 +169,11 @@ export default function Sidebar({ fraudCount, anomalyCount }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0,
         }}>
-          JD
+          {initials}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            John Doe
+            {userName}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Super Admin</div>
         </div>

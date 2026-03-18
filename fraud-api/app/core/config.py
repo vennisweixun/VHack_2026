@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     mongodb_db_name: str = Field(default="fraudshield", alias="MONGODB_DB_NAME")
 
     # XGBoost model path (from fraud_model_pipeline.py + patch_pkl.py)
-    model_path: str = Field(default=r"C:\FraudShield\fraud_model.pkl", alias="MODEL_PATH")
+    model_path: str = Field(default="C:/Users/Mjian/OneDrive/Documents/GitHub/VHack_2026/fraud_model.pkl", alias="FRAUD_MODEL_URL")
 
     # Risk thresholds
     # fraud_probability < approved_threshold          → APPROVED
